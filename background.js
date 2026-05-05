@@ -1,7 +1,8 @@
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-const INTERNAL_API_KEY = "AIzaSyCXWya6YZIdDFHbGdCAHumJXwSLHS-jUm8";
+// Replace with your actual deployed Vercel URL
+const PROXY_URL = 'https://YOUR-PROJECT-NAME.vercel.app/api/summarize';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -24,57 +25,63 @@ async function handleSummarize({ url, content, title }) {
     return { success: true, summary: cached, fromCache: true };
   }
 
-  // Get API key from storage, fallback to internal key
+  // Get API key from storage
   const { geminiApiKey } = await chrome.storage.local.get('geminiApiKey');
-  const apiKey = geminiApiKey || INTERNAL_API_KEY;
 
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'No API key set. Click the settings icon to add your Gemini API key.',
-    };
-  }
+  if (geminiApiKey) {
+    // Direct call to Gemini API
+    const prompt = buildPrompt(title, content);
+    try {
+      const response = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
 
-  const prompt = buildPrompt(title, content);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        return { success: false, error: err?.error?.message ?? `API error ${response.status}` };
+      }
 
-  try {
-    const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return { success: false, error: 'No summary returned from AI.' };
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const message = err?.error?.message ?? `API error ${response.status}`;
-      return { success: false, error: message };
+      const summary = parseSummary(text);
+      await setCached(url, summary);
+      return { success: true, summary, fromCache: false };
+    } catch (err) {
+      return { success: false, error: err.message ?? 'Network error.' };
     }
+  } else {
+    // Call via proxy
+    try {
+      const response = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+      });
 
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        return { success: false, error: err?.error ?? `Proxy error ${response.status}` };
+      }
 
-    if (!text) {
-      return { success: false, error: 'No summary returned from AI.' };
+      const data = await response.json();
+      if (!data.success) return { success: false, error: data.error };
+
+      await setCached(url, data.summary);
+      return { success: true, summary: data.summary, fromCache: false };
+    } catch (err) {
+      return { success: false, error: 'Proxy connection failed. Please check your setup.' };
     }
-
-    const summary = parseSummary(text);
-
-    // Cache the result
-    await setCached(url, summary);
-
-    return { success: true, summary, fromCache: false };
-  } catch (err) {
-    return {
-      success: false,
-      error: err.message ?? 'Network error. Please check your connection.',
-    };
   }
 }
 
