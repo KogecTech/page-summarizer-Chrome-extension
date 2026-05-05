@@ -14,6 +14,7 @@ A Manifest V3 Chrome Extension that extracts content from any webpage and genera
 - Copy summary to clipboard
 - Clean, keyboard-accessible popup UI
 - API key stored securely in chrome.storage — never hardcoded
+- Proxy-based AI processing fallback for secure API key management
 
 ---
 
@@ -44,9 +45,9 @@ page-summarizer/
 ## AI Integration
 
 - Provider: Google Gemini (`gemini-2.5-flash`)
-- The extension includes a built-in API key for automatic use
-- Users can override the built-in key with their own in the extension settings
-- All API calls happen in `background.js` (service worker) — never in content scripts or popup
+- Uses a secure proxy server as a fallback when no local API key is provided
+- Users can override the fallback by providing their own key in the extension settings
+- All AI processing happens in `background.js` (service worker) or via the proxy
 - `responseMimeType: 'application/json'` forces structured JSON output
 - Responses are cached per URL for 10 minutes to reduce API usage
 
@@ -64,8 +65,8 @@ page-summarizer/
 
 ## Trade-offs and Limitations
 
-- Extension includes a built-in API key for automatic use
-- API key can be overridden by the user in settings
+- Proxy-based fallback requires a hosted server (e.g., Vercel)
+- Direct API usage is possible by providing a personal key in settings
 - Free tier has rate limits — heavy usage may hit quota
 - Cannot summarize pages that block content scripts (e.g. chrome:// URLs, PDF files)
 - Content extraction uses heuristics — may not work perfectly on all page layouts
@@ -85,12 +86,18 @@ This extension is not on the Chrome Web Store. Install it locally:
 
 ## How to Set Up
 
-The extension works out-of-the-box with a built-in API key. If you wish to use your own:
-
+### Option 1: Use your own API key (Recommended)
 1. Get a free Gemini API key at **aistudio.google.com**
 2. Click the extension icon in Chrome toolbar
 3. Click the settings icon (gear) in the top right of the popup
 4. Paste your API key and click **Save API Key**
+
+### Option 2: Deploy a Proxy Server
+To keep an API key secure for distributed use:
+1. Create a [Vercel](https://vercel.com) account.
+2. Deploy the contents of the `proxy/` folder.
+3. Add an Environment Variable `GEMINI_API_KEY` in Vercel with your key.
+4. Update `PROXY_URL` in `background.js` with your deployed URL + `/api/summarize`.
 
 ## How to Use
 
