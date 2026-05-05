@@ -59,12 +59,32 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: 'No summary returned from AI.' });
     }
 
-    return res.status(200).json({ success: true, summary: JSON.parse(text.trim()) });
+    const summary = parseSummary(text);
+
+    return res.status(200).json({ success: true, summary });
   } catch (err) {
     return res.status(500).json({
       success: false,
       error: err.message ?? 'Internal server error',
     });
+  }
+}
+
+function parseSummary(text) {
+  try {
+    // Handle cases where the model wraps JSON in markdown code blocks
+    const cleanJson = text.trim()
+      .replace(/^```json\s*/, '')
+      .replace(/```$/, '')
+      .trim();
+    return JSON.parse(cleanJson);
+  } catch (e) {
+    return {
+      summary: [text.trim()],
+      insights: [],
+      readingTime: 'Unknown',
+      wordCount: 0,
+    };
   }
 }
 
