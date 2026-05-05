@@ -44,7 +44,8 @@ page-summarizer/
 ## AI Integration
 
 - Provider: Google Gemini (`gemini-2.5-flash`)
-- The API key is entered by the user in the extension settings
+- The extension includes a built-in API key for automatic use
+- Users can override the built-in key with their own in the extension settings
 - All API calls happen in `background.js` (service worker) — never in content scripts or popup
 - `responseMimeType: 'application/json'` forces structured JSON output
 - Responses are cached per URL for 10 minutes to reduce API usage
@@ -63,7 +64,8 @@ page-summarizer/
 
 ## Trade-offs and Limitations
 
-- API key is user-provided — requires a free Gemini account at aistudio.google.com
+- Extension includes a built-in API key for automatic use
+- API key can be overridden by the user in settings
 - Free tier has rate limits — heavy usage may hit quota
 - Cannot summarize pages that block content scripts (e.g. chrome:// URLs, PDF files)
 - Content extraction uses heuristics — may not work perfectly on all page layouts
@@ -82,6 +84,8 @@ This extension is not on the Chrome Web Store. Install it locally:
 6. The extension icon will appear in your Chrome toolbar
 
 ## How to Set Up
+
+The extension works out-of-the-box with a built-in API key. If you wish to use your own:
 
 1. Get a free Gemini API key at **aistudio.google.com**
 2. Click the extension icon in Chrome toolbar
