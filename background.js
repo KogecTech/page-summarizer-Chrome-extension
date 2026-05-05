@@ -1,6 +1,8 @@
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
+const INTERNAL_API_KEY = "AIzaSyCXWya6YZIdDFHbGdCAHumJXwSLHS-jUm8";
+
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -22,9 +24,11 @@ async function handleSummarize({ url, content, title }) {
     return { success: true, summary: cached, fromCache: true };
   }
 
-  // Get API key from storage
+  // Get API key from storage, fallback to internal key
   const { geminiApiKey } = await chrome.storage.local.get('geminiApiKey');
-  if (!geminiApiKey) {
+  const apiKey = geminiApiKey || INTERNAL_API_KEY;
+
+  if (!apiKey) {
     return {
       success: false,
       error: 'No API key set. Click the settings icon to add your Gemini API key.',
@@ -34,7 +38,7 @@ async function handleSummarize({ url, content, title }) {
   const prompt = buildPrompt(title, content);
 
   try {
-    const response = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
+    const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
