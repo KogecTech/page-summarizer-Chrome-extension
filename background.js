@@ -1,6 +1,4 @@
-const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
+const PROXY_ENDPOINT = 'https://vercel-proxy-nu-lovat.vercel.app/api/summarize';
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -22,50 +20,31 @@ async function handleSummarize({ url, content, title }) {
     return { success: true, summary: cached, fromCache: true };
   }
 
-  // Get API key from storage
-  const { geminiApiKey } = await chrome.storage.local.get('geminiApiKey');
-  if (!geminiApiKey) {
-    return {
-      success: false,
-      error: 'No API key set. Click the settings icon to add your Gemini API key.',
-    };
-  }
-
   const prompt = buildPrompt(title, content);
 
   try {
-    const response = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
+    const response = await fetch(PROXY_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        },
-      }),
+      body: JSON.stringify({ title, content: prompt }),
     });
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      const message = err?.error?.message ?? `API error ${response.status}`;
+      const message = err?.error ?? `Server error ${response.status}`;
       return { success: false, error: message };
     }
 
     const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!text) {
-      return { success: false, error: 'No summary returned from AI.' };
+    if (!data.success || !data.summary) {
+      return { success: false, error: data.error ?? 'No summary returned.' };
     }
 
-    const summary = parseSummary(text);
-
     // Cache the result
-    await setCached(url, summary);
+    await setCached(url, data.summary);
 
-    return { success: true, summary, fromCache: false };
+    return { success: true, summary: data.summary, fromCache: false };
   } catch (err) {
     return {
       success: false,

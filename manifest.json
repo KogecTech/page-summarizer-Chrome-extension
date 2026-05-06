@@ -35,6 +35,6 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://generativelanguage.googleapis.com/*"
+    "https://vercel-proxy-nu-lovat.vercel.app/*"
   ]
 }
