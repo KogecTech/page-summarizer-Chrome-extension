@@ -1,6 +1,9 @@
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
+// Replace with your actual Vercel deployment URL
+const PROXY_URL = 'https://YOUR-PROJECT-NAME.vercel.app/api/summarize';
+
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -24,28 +27,35 @@ async function handleSummarize({ url, content, title }) {
 
   // Get API key from storage
   const { geminiApiKey } = await chrome.storage.local.get('geminiApiKey');
-  if (!geminiApiKey) {
-    return {
-      success: false,
-      error: 'No API key set. Click the settings icon to add your Gemini API key.',
-    };
-  }
 
   const prompt = buildPrompt(title, content);
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 2048,
+      responseMimeType: 'application/json',
+    },
+  };
 
   try {
-    const response = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
+    let response;
+
+    if (geminiApiKey) {
+      // Use direct API call if user provided a key
+      response = await fetch(`${GEMINI_ENDPOINT}?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      // Fallback to proxy
+      response = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));

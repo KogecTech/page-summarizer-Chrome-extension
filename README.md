@@ -44,20 +44,52 @@ page-summarizer/
 ## AI Integration
 
 - Provider: Google Gemini (`gemini-2.5-flash`)
-- The API key is entered by the user in the extension settings
-- All API calls happen in `background.js` (service worker) — never in content scripts or popup
-- `responseMimeType: 'application/json'` forces structured JSON output
-- Responses are cached per URL for 10 minutes to reduce API usage
+- **Dual Support**: Works with a user-provided API key OR a built-in proxy server.
+- All API calls happen in `background.js` (service worker) — never in content scripts or popup.
+- `responseMimeType: 'application/json'` forces structured JSON output.
+- Responses are cached per URL for 10 minutes to reduce API usage.
+
+---
+
+## Proxy Server & Deployment
+
+To make the extension work out-of-the-box for users without requiring them to get their own API key, you can deploy the included proxy server to Vercel.
+
+### How it works:
+1. The extension first checks `chrome.storage.local` for a `geminiApiKey`.
+2. If found, it calls the Gemini API directly.
+3. If NOT found, it falls back to the `PROXY_URL` defined in `background.js`.
+
+### Deployment Instructions:
+
+1. **Prerequisites**: A [Vercel](https://vercel.com) account and a [Gemini API Key](https://aistudio.google.com/app/apikey).
+2. **Setup Environment**:
+   - Create a `.env` file in the root (a template is provided).
+   - Add your key: `GEMINI_API_KEY=your_key_here`.
+   - The `.gitignore` ensures this file is never committed.
+3. **Deploy to Vercel**:
+   - Push this repository to GitHub/GitLab/Bitbucket.
+   - Import the project into Vercel.
+   - **Important**: In Vercel Project Settings, add an Environment Variable:
+     - Key: `GEMINI_API_KEY`
+     - Value: `your_gemini_api_key`
+4. **Update Extension**:
+   - After deployment, copy your Vercel deployment URL (e.g., `https://your-project.vercel.app`).
+   - Open `background.js` and update `PROXY_URL`:
+     ```javascript
+     const PROXY_URL = 'https://your-project.vercel.app/api/summarize';
+     ```
+   - Reload the extension in `chrome://extensions`.
 
 ---
 
 ## Security Decisions
 
-- No API keys hardcoded or committed to the repository
-- API key stored in `chrome.storage.local` — sandboxed to the extension
-- All AI requests made from the background service worker, not the page context
-- DOM injection uses `textContent` not `innerHTML` to prevent XSS
-- Minimal permissions: `activeTab`, `storage`, `scripting`
+- **No Hardcoded Keys**: API keys are never stored in the client-side code. They stay on your secure Vercel server or in the user's local storage.
+- **CORS & Safety**: The proxy ensures your key is hidden from the end user.
+- **Local Storage**: User-provided keys are stored in `chrome.storage.local` — sandboxed to the extension.
+- **XSS Prevention**: DOM injection uses `textContent` not `innerHTML`.
+- Minimal permissions: `activeTab`, `storage`, `scripting`.
 
 ---
 
