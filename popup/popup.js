@@ -58,6 +58,8 @@ async function loadSettings() {
   const { geminiApiKey } = await chrome.storage.local.get('geminiApiKey');
   if (geminiApiKey) {
     inputApiKey.value = geminiApiKey;
+  } else {
+    inputApiKey.placeholder = 'Using built-in key';
   }
 }
 
